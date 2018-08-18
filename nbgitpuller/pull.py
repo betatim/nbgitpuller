@@ -54,9 +54,11 @@ class GitPuller:
         while preserving user changes
         """
         if not os.path.exists(self.repo_dir):
-            yield from self.initialize_repo()
+            for l in self.initialize_repo():
+                yield l
         else:
-            yield from self.update()
+            for l in self.update():
+                yield l
 
     def initialize_repo(self):
         """
@@ -64,10 +66,14 @@ class GitPuller:
         """
 
         logging.info('Repo {} doesn\'t exist. Cloning...'.format(self.repo_dir))
-        yield from execute_cmd(['git', 'clone', self.git_url, self.repo_dir])
-        yield from execute_cmd(['git', 'checkout', self.branch_name], cwd=self.repo_dir)
-        yield from execute_cmd(['git', 'config', 'user.email', 'nbgitpuller@example.com'], cwd=self.repo_dir)
-        yield from execute_cmd(['git', 'config', 'user.name', 'nbgitpuller'], cwd=self.repo_dir)
+        for l in execute_cmd(['git', 'clone', self.git_url, self.repo_dir]):
+            yield l
+        for l in execute_cmd(['git', 'checkout', self.branch_name], cwd=self.repo_dir):
+            yield l
+        for l in execute_cmd(['git', 'config', 'user.email', 'nbgitpuller@example.com'], cwd=self.repo_dir):
+            yield l
+        for l in execute_cmd(['git', 'config', 'user.name', 'nbgitpuller'], cwd=self.repo_dir):
+            yield l
         logging.info('Repo {} initialized'.format(self.repo_dir))
 
 
@@ -78,14 +84,16 @@ class GitPuller:
         clean version of the file again.
         """
 
-        yield from self.ensure_lock()
+        for l in self.ensure_lock():
+            yield l
         deleted_files = subprocess.check_output([
             'git', 'ls-files', '--deleted'
         ], cwd=self.repo_dir).decode().strip().split('\n')
 
         for filename in deleted_files:
             if filename:  # Filter out empty lines
-                yield from execute_cmd(['git', 'checkout', '--', filename], cwd=self.repo_dir)
+                for l in execute_cmd(['git', 'checkout', '--', filename], cwd=self.repo_dir):
+                    yield l
 
     def repo_is_dirty(self):
         """
@@ -102,7 +110,8 @@ class GitPuller:
         """
         Do a git fetch so our remotes are up to date
         """
-        yield from execute_cmd(['git', 'fetch'], cwd=self.repo_dir)
+        for l in execute_cmd(['git', 'fetch'], cwd=self.repo_dir):
+            yield l
 
     def find_upstream_changed(self, kind):
         """
@@ -165,16 +174,19 @@ class GitPuller:
         Do the pulling if necessary
         """
         # Fetch remotes, so we know we're dealing with latest remote
-        yield from self.update_remotes()
+        for l in self.update_remotes():
+            yield l
 
         # Rename local untracked files that might be overwritten by pull
-        yield from self.rename_local_untracked()
+        for l in self.rename_local_untracked():
+            yield l
 
         # Reset local files that have been deleted. We don't actually expect users to
         # delete something that's present upstream and expect to keep it. This prevents
         # unnecessary conflicts, and also allows users to click the link again to get
         # a fresh copy of a file they might have screwed up.
-        yield from self.reset_deleted_files()
+        for l in self.reset_deleted_files():
+            yield l
 
         # If there are local changes, make a commit so we can do merges when pulling
         # We also allow empty commits. On NFS (at least), sometimes repo_is_dirty returns a false
@@ -182,12 +194,16 @@ class GitPuller:
         # bogus output?). While ideally that would not happen, allowing empty commits keeps us
         # resilient to that issue.
         if self.repo_is_dirty():
-            yield from self.ensure_lock()
-            yield from execute_cmd(['git', 'commit', '-am', 'WIP', '--allow-empty'], cwd=self.repo_dir)
+            for l in self.ensure_lock():
+                yield l
+            for l in execute_cmd(['git', 'commit', '-am', 'WIP', '--allow-empty'], cwd=self.repo_dir):
+                yield l
 
         # Merge master into local!
-        yield from self.ensure_lock()
-        yield from execute_cmd(['git', 'merge', '-Xours', 'origin/{}'.format(self.branch_name)], cwd=self.repo_dir)
+        for l in self.ensure_lock():
+            yield l
+        for l in execute_cmd(['git', 'merge', '-Xours', 'origin/{}'.format(self.branch_name)], cwd=self.repo_dir):
+            yield l
 
 
 
