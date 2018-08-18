@@ -1,6 +1,9 @@
 from tornado import gen, web, locks
 import traceback
-import urllib.parse
+try:
+    import urllib.parse as parse
+except ImportError:
+    import urlparse as parse
 
 from notebook.utils import url_path_join
 from notebook.base.handlers import IPythonHandler
